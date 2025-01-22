@@ -7,10 +7,11 @@
 #SBATCH --gres=gpu:1
 
 ### Specify Memory allocate to this job ###
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 
 ### Specify number of core (CPU) to allocate to per node ###
 #SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=16
 
 ### Specify number of node to compute ###
 #SBATCH --nodes=1
@@ -23,10 +24,14 @@
 #SBATCH --time=360
 
 ### Specify name for the job, filename format for output and error ###
-#SBATCH --job-name=TestJob
+#SBATCH --job-name=Job2
 #SBATCH --output=output_%x_%j.out
 #SBATCH --error=error_%x_%j.err
 
 ### Your script for computation ###
+cd ../swinir/datasets
+
 module load anaconda
 source activate FYPcuda
+
+python downscale_img.py
