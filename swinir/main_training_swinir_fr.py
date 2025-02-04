@@ -95,7 +95,7 @@ class CelebASRDataset(Dataset):
 
 # Init datasets
 print("Loading CelebA-SR dataset...")
-train_set = CelebASRDataset(lr_dir, hr_dir, mode="train")
+train_set = CelebASRDataset(lr_dir, hr_dir, mode="train", device=device)
 train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
 print(f"Dataset loaded.")
 
