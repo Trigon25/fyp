@@ -29,9 +29,9 @@
 #SBATCH --error=error_%x_%j.err
 
 ### Your script for computation ###
-cd ../swinir/datasets
+cd ../swinir/
 
 module load anaconda
 source activate FYPcuda
 
-python downscale_img.py
+python main_training_swinir_fr.py

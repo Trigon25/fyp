@@ -1,0 +1,10 @@
+Using device: cuda
+Number of training identities: 300
+Number of training images: 9017
+Number of test identities: 100
+Number of test images: 3008
+Loading CelebA-SR dataset...
+Dataset loaded.
+Loading SwinIR model...
+Model loaded successfully!
+Starting training...
