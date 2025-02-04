@@ -145,6 +145,7 @@ fr_model = (
 # VGG for perceptual loss
 vgg = (
     models.vgg19(weights=VGG19_Weights.IMAGENET1K_V1)
+    .to(device)
     .features[:16]
     .eval()
     .requires_grad_(False)
