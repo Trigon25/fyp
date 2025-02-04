@@ -90,12 +90,10 @@ class CelebASRDataset(Dataset):
     def __getitem__(self, idx):
         lr_img = (
             ToTensor()(Image.open(os.path.join(self.lr_dir, self.filenames[idx])))
-            .unsqueeze(0)
             .to(self.device)
         )
         hr_img = (
             ToTensor()(Image.open(os.path.join(self.hr_dir, self.filenames[idx])))
-            .unsqueeze(0)
             .to(self.device)
         )
         # return lr_img, hr_img, self.filenames[idx]
