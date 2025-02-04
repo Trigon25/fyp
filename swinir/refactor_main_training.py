@@ -12,6 +12,7 @@ from torchvision.transforms import Compose, ToTensor
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 from typing import List, Dict, Any, Tuple
+from torch.cuda.amp import autocast, GradScaler
 
 from models.network_swinir import SwinIR
 from facenet_pytorch import InceptionResnetV1
@@ -196,9 +197,10 @@ def evaluate_fooling_rate(generator: nn.Module, fr_model: nn.Module,
 def train_model(model_gen: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer,
                 pixel_loss_fn: nn.Module, vgg: nn.Module, fr_model: nn.Module,
                 device: torch.device, epoch: int,
-                lambda_pixel: float = 1.0, lambda_perceptual: float = 0.1, lambda_adv: float = 0.01) -> None:
+                lambda_pixel: float = 1.0, lambda_perceptual: float = 0.1, lambda_adv: float = 0.01,
+                scaler: GradScaler = None) -> None:
     """
-    Train the generator model for one epoch.
+    Train the generator model for one epoch using mixed precision training.
     
     Args:
         model_gen (nn.Module): Generator model.
@@ -212,24 +214,31 @@ def train_model(model_gen: nn.Module, dataloader: DataLoader, optimizer: optim.O
         lambda_pixel (float): Weight for pixel loss.
         lambda_perceptual (float): Weight for perceptual loss.
         lambda_adv (float): Weight for adversarial loss.
+        scaler (GradScaler): AMP GradScaler instance.
     """
     model_gen.train()
+    if scaler is None:
+        scaler = GradScaler()
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}", unit="batch")
     for batch in progress_bar:
         lr = batch["lr"].to(device)
         hr = batch["hr"].to(device)
         optimizer.zero_grad()
-        sr = model_gen(lr)
-
-        loss_pixel = pixel_loss_fn(sr, hr)
-        loss_perceptual = perceptual_loss_fn(vgg, sr, hr)
-        loss_adv = adversarial_loss_fn(fr_model, sr, hr)
-
-        total_loss = (lambda_pixel * loss_pixel +
-                      lambda_perceptual * loss_perceptual +
-                      lambda_adv * loss_adv)
-        total_loss.backward()
-        optimizer.step()
+        
+        # Mixed precision forward pass
+        with autocast():
+            sr = model_gen(lr)
+            loss_pixel = pixel_loss_fn(sr, hr)
+            loss_perceptual = perceptual_loss_fn(vgg, sr, hr)
+            loss_adv = adversarial_loss_fn(fr_model, sr, hr)
+            total_loss = (lambda_pixel * loss_pixel +
+                          lambda_perceptual * loss_perceptual +
+                          lambda_adv * loss_adv)
+        
+        # Backpropagation with gradient scaling
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         progress_bar.set_postfix(loss=total_loss.item())
 
 
@@ -305,8 +314,8 @@ def main():
     train_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=train_img_filenames)
     test_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=test_img_filenames)
 
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=8, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=8, pin_memory=True)
     print(f"Dataset loaded: {len(train_set)} training samples, {len(test_set)} test samples.")
 
     # ----------------------
@@ -342,14 +351,19 @@ def main():
     lambda_perceptual = 0.1
     lambda_adv = 0.01
 
+    # Initialize GradScaler for mixed precision training
+    scaler = GradScaler()
+
     # ----------------------
     # Training
     # ----------------------
     num_epochs = 100
     print("Starting training...")
     for epoch in range(1, num_epochs + 1):
-        train_model(model_gen, train_loader, optimizer, pixel_loss_fn, vgg, fr_model, device, epoch,
-                    lambda_pixel, lambda_perceptual, lambda_adv)
+        train_model(
+            model_gen, train_loader, optimizer, pixel_loss_fn, vgg, fr_model, device, epoch,
+            lambda_pixel, lambda_perceptual, lambda_adv, scaler
+        )
 
     # Save the trained model
     torch.save(model_gen.state_dict(), "output/swinir_fr_model.pth")
