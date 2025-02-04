@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -54,7 +55,8 @@ print(f"Number of test images: {len(test_img_filenames)}")
 # 1. Dataset Preparation
 # ----------------------
 class CelebASRDataset(Dataset):
-    def __init__(self, lr_dir, hr_dir, mode="train"):
+    def __init__(self, lr_dir, hr_dir, mode="train", device="cpu"):
+        self.device = device
         self.lr_dir = lr_dir
         self.hr_dir = hr_dir
         self.filenames = [
@@ -85,8 +87,8 @@ class CelebASRDataset(Dataset):
         return len(self.filenames)
 
     def __getitem__(self, idx):
-        lr_img = ToTensor()(Image.open(os.path.join(self.lr_dir, self.filenames[idx])))
-        hr_img = ToTensor()(Image.open(os.path.join(self.hr_dir, self.filenames[idx])))
+        lr_img = ToTensor()(Image.open(os.path.join(self.lr_dir, self.filenames[idx]))).to(self.device)
+        hr_img = ToTensor()(Image.open(os.path.join(self.hr_dir, self.filenames[idx]))).to(self.device)
         # return lr_img, hr_img, self.filenames[idx]
         return {"lr": lr_img, "hr": hr_img, "filename": self.filenames[idx]}
 
