@@ -1,3 +1,10 @@
-swinir/datasets/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
 *.zip
+.DS_Store
+venv/
+swinir/datasets/
 swinir/__MACOSX/
