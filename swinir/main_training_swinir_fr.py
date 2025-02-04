@@ -51,6 +51,7 @@ with open("img_processing/split_ids/identity_test.txt", "r") as f:
 print(f"Number of test identities: {len(set(test_img_ids))}")
 print(f"Number of test images: {len(test_img_filenames)}")
 
+
 # ----------------------
 # 1. Dataset Preparation
 # ----------------------
@@ -73,7 +74,7 @@ class CelebASRDataset(Dataset):
             )
         else:
             raise ValueError("Invalid mode. Choose 'train' or 'test'.")
-        
+
         # Verify one sample
         lr_sample = Image.open(os.path.join(lr_dir, self.filenames[0]))
         hr_sample = Image.open(os.path.join(hr_dir, self.filenames[0]))
@@ -87,8 +88,16 @@ class CelebASRDataset(Dataset):
         return len(self.filenames)
 
     def __getitem__(self, idx):
-        lr_img = ToTensor()(Image.open(os.path.join(self.lr_dir, self.filenames[idx]))).to(self.device)
-        hr_img = ToTensor()(Image.open(os.path.join(self.hr_dir, self.filenames[idx]))).to(self.device)
+        lr_img = (
+            ToTensor()(Image.open(os.path.join(self.lr_dir, self.filenames[idx])))
+            .unsqueeze(0)
+            .to(self.device)
+        )
+        hr_img = (
+            ToTensor()(Image.open(os.path.join(self.hr_dir, self.filenames[idx])))
+            .unsqueeze(0)
+            .to(self.device)
+        )
         # return lr_img, hr_img, self.filenames[idx]
         return {"lr": lr_img, "hr": hr_img, "filename": self.filenames[idx]}
 
@@ -99,10 +108,11 @@ train_set = CelebASRDataset(lr_dir, hr_dir, mode="train", device=device)
 train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
 print(f"Dataset loaded.")
 
+
 # ----------------------
 # 2. Model Loading
 # ----------------------
-def load_swinir_model(pretrained_path):
+def load_swinir_model(pretrained_path, device="cpu"):
     model = SwinIR(
         upscale=4,
         img_size=64,
@@ -115,14 +125,14 @@ def load_swinir_model(pretrained_path):
         upsampler="pixelshuffle",
         resi_connection="1conv",
     )
-    checkpoint = torch.load(pretrained_path, weights_only=True)
+    checkpoint = torch.load(pretrained_path, weights_only=True, map_location=device)
     model.load_state_dict(checkpoint["params"], strict=False)
     return model
 
 
 print("Loading SwinIR model...")
 model_gen = load_swinir_model(
-    "./model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+    "./model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth", device=device
 ).to(device)
 for name, param in model_gen.named_parameters():
     if "layers.0" in name or "patch_embed" in name:  # Freeze first layer
@@ -130,7 +140,9 @@ for name, param in model_gen.named_parameters():
 print("Model loaded successfully!")
 
 # Fixed Facial Recognition Model FaceNet
-fr_model = InceptionResnetV1(pretrained="vggface2").eval().requires_grad_(False).to(device)
+fr_model = (
+    InceptionResnetV1(pretrained="vggface2").eval().requires_grad_(False).to(device)
+)
 
 # VGG for perceptual loss
 vgg = (
@@ -177,35 +189,36 @@ for epoch in range(100):
     with tqdm(train_loader, unit="batch") as tepoch:
         for batch in tepoch:
             tepoch.set_description(f"Epoch {epoch}")
-            lr = batch['lr']
-            hr = batch['hr']
-            
+            lr = batch["lr"]
+            hr = batch["hr"]
+
             # Forward pass
             sr = model_gen(lr)
-            
+
             # Loss calculations
             loss_pixel = pixel_loss(sr, hr)
             loss_perceptual = perceptual_loss(sr, hr)
             loss_adv = adversarial_loss(sr, hr)
-            
+
             # Total loss
             total_loss = (
-                lambda_pixel * loss_pixel +
-                lambda_perceptual * loss_perceptual +
-                lambda_adv * loss_adv
+                lambda_pixel * loss_pixel
+                + lambda_perceptual * loss_perceptual
+                + lambda_adv * loss_adv
             )
-            
+
             # Backward pass
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-            
+
             tepoch.set_postfix(loss=total_loss.item())
-    
+
 # Save model
 torch.save(model_gen.state_dict(), "output/swinir_fr_model.pth")
 
-# ----------------------    
+
+# ----------------------
 # 4. Evaluation
 # ----------------------
 # Visual Quality (PSNR/SSIM)
@@ -213,55 +226,57 @@ def calculate_psnr(sr, hr):
     mse = torch.mean((sr - hr) ** 2)
     return 10 * torch.log10(1.0 / mse)
 
+
 # Fooling Rate (FR accuracy drop)
 def evaluate_fooling_rate(generator, test_loader):
     correct = 0
     total = 0
     with torch.no_grad():
         for batch in test_loader:
-            lr = batch['lr']
-            hr = batch['hr']
+            lr = batch["lr"]
+            hr = batch["hr"]
             sr = generator(lr)
-            
+
             # Get FR predictions
             pred_hr = fr_model(hr).argmax(dim=1)
             pred_sr = fr_model(sr).argmax(dim=1)
-            
+
             # Compare predictions
             total += hr.size(0)
             correct += (pred_sr != pred_hr).sum().item()
-    
+
     return correct / total  # Higher = better fooling rate
+
 
 # Load test dataset
 test_set = CelebASRDataset(lr_dir, hr_dir, mode="test")
-test_loader = DataLoader(test_set, batch_size=32, shuffle=False)                                
+test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
 
 # Evaluate model
-model_gen.eval()                        
-metrics = {'L1': 0, 'PSNR': 0, 'SSIM': 0}
+model_gen.eval()
+metrics = {"L1": 0, "PSNR": 0, "SSIM": 0}
 fooling_rate = evaluate_fooling_rate(model_gen, test_loader)
 
 with torch.no_grad():
     for batch in test_loader:
-        lr = batch['lr']
-        hr = batch['hr']
+        lr = batch["lr"]
+        hr = batch["hr"]
         sr = model_gen(lr)
-        
+
         # Calculate metrics
-        metrics['L1'] += pixel_loss(sr, hr).item()
-        metrics['PSNR'] += calculate_psnr(sr, hr)
-        
+        metrics["L1"] += pixel_loss(sr, hr).item()
+        metrics["PSNR"] += calculate_psnr(sr, hr)
+
         # Convert to numpy (HWC format)
         sr_np = sr.squeeze().cpu().numpy().transpose(1, 2, 0)
         hr_np = hr.squeeze().cpu().numpy().transpose(1, 2, 0)
-        
+
         # Calculate image metrics
-        metrics['SSIM'] += ssim(hr_np, sr_np, data_range=1.0, multichannel=True)
+        metrics["SSIM"] += ssim(hr_np, sr_np, data_range=1.0, multichannel=True)
 
 # Average results
 num_samples = len(test_set)
-metrics = {k: v/num_samples for k, v in metrics.items()}
+metrics = {k: v / num_samples for k, v in metrics.items()}
 print(f"Metrics:")
 print(f"L1: {metrics['L1']:.4f}")
 print(f"PSNR: {metrics['PSNR']:.2f} db")
@@ -269,7 +284,7 @@ print(f"SSIM: {metrics['SSIM']:.4f}")
 print(f"Fooling Rate: {fooling_rate:.4f}")
 
 # Save metrics
-with open('output/metrics.txt', 'w') as f:
+with open("output/metrics.txt", "w") as f:
     f.write(f"L1: {metrics['L1']:.4f}\n")
     f.write(f"PSNR: {metrics['PSNR']:.2f}\n")
     f.write(f"SSIM: {metrics['SSIM']:.4f}\n")
