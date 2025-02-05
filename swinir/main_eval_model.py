@@ -112,7 +112,8 @@ def load_swinir_model(pretrained_path: str, device: torch.device):
         resi_connection="1conv",
     )
     checkpoint = torch.load(pretrained_path, map_location=device)
-    model.load_state_dict(checkpoint["params"], strict=False)
+    state_dict = checkpoint["params"] if "params" in checkpoint else checkpoint
+    model.load_state_dict(state_dict, strict=False)
     return model
 
 
