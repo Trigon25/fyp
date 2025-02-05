@@ -141,8 +141,8 @@ def adversarial_loss_fn(fr_model: nn.Module, sr: torch.Tensor, hr: torch.Tensor)
     """
     sr_emb = fr_model(sr)
     hr_emb = fr_model(hr)
-    return 1 - torch.nn.functional.cosine_similarity(sr_emb, hr_emb).mean()
-
+    cos_sim = torch.nn.functional.cosine_similarity(sr_emb, hr_emb, dim=1, eps=1e-8)
+    return 1 - cos_sim.mean()
 
 def calculate_psnr_tensor(sr: torch.Tensor, hr: torch.Tensor) -> float:
     """
@@ -226,7 +226,7 @@ def train_model(model_gen: nn.Module, dataloader: DataLoader, optimizer: optim.O
         optimizer.zero_grad()
         
         # Mixed precision forward pass
-        with autocast():
+        with autocast(enabled=False):
             sr = model_gen(lr)
             loss_pixel = pixel_loss_fn(sr, hr)
             loss_perceptual = perceptual_loss_fn(vgg, sr, hr)
@@ -278,7 +278,7 @@ def evaluate_model(model_gen: nn.Module, dataloader: DataLoader,
                 # Convert from (C, H, W) to (H, W, C)
                 sr_img = np.transpose(sr_cpu[i], (1, 2, 0))
                 hr_img = np.transpose(hr_cpu[i], (1, 2, 0))
-                batch_ssim += compute_ssim(hr_img, sr_img, data_range=1.0, multichannel=True)
+                batch_ssim += compute_ssim(hr_img, sr_img, data_range=1.0, channel_axis=-1)
             metrics["SSIM"] += batch_ssim / sr_cpu.shape[0]
             total_batches += 1
 
@@ -314,8 +314,8 @@ def main():
     train_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=train_img_filenames)
     test_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=test_img_filenames)
 
-    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=8, pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=8, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=16, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=16, pin_memory=True)
     print(f"Dataset loaded: {len(train_set)} training samples, {len(test_set)} test samples.")
 
     # ----------------------
