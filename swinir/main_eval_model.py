@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import argparse
 import numpy as np
 import torch
 import torch.nn as nn
@@ -204,14 +205,24 @@ def evaluate_fooling_rate(generator: nn.Module, fr_model: nn.Module, dataloader:
 
 def main():
     # -------------------------
+    # Arguments
+    # -------------------------
+        # Directories and file paths (adjust these paths as needed)
+    parser = argparse.ArgumentParser(description="Evaluate SwinIR model on CelebA-SR dataset")
+    parser.add_argument("--lr_dir", type=str, default="./datasets/celeba_LR_factor_0.25", help="Directory with LR images")
+    parser.add_argument("--hr_dir", type=str, default="./datasets/celeba_HR_resized_128", help="Directory with HR images")
+    parser.add_argument("--test_identity_file", type=str, default="img_processing/split_ids/identity_test.txt", help="Path to the test identity file")
+    parser.add_argument("--model_path", type=str, default=None, help="Path to the saved SwinIR model checkpoint")
+    args = parser.parse_args()
+
+    lr_dir = args.lr_dir
+    hr_dir = args.hr_dir
+    test_identity_file = args.test_identity_file
+    model_path = args.model_path
+    
+    # -------------------------
     # Setup
     # -------------------------
-    # Directories and file paths (adjust these paths as needed)
-    lr_dir = "./datasets/celeba_LR_factor_0.25"
-    hr_dir = "./datasets/celeba_HR_resized_128"
-    model_path = "./output/swinir_fr_model.pth"
-    test_identity_file = "img_processing/split_ids/identity_test.txt"
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -229,6 +240,8 @@ def main():
     # Load Models
     # -------------------------
     print("Loading saved SwinIR model...")
+    if model_path is None:
+        raise ValueError("Model path must be specified.")
     model_gen = load_swinir_model(model_path, device).to(device)
 
     # Load Face Recognition model (for fooling rate evaluation)
