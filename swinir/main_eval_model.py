@@ -27,6 +27,7 @@ from torchvision.models import VGG19_Weights
 
 from models.network_swinir import SwinIR
 from facenet_pytorch import InceptionResnetV1
+from datetime import datetime
 
 
 def load_identity_file(file_path: str):
@@ -267,7 +268,9 @@ def main():
 
     # Save the evaluation metrics to a file.
     os.makedirs("output", exist_ok=True)
-    metrics_file = os.path.join("output", "eval_metrics.txt")
+    model_name = os.path.basename(model_path).split('.')[-1]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    metrics_file = os.path.join("output", f"eval_metrics_{model_name}_{timestamp}.txt")
     with open(metrics_file, "w") as f:
         f.write(f"L1: {metrics['L1']:.4f}\n")
         f.write(f"PSNR: {metrics['PSNR']:.2f}\n")
