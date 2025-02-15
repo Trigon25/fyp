@@ -280,7 +280,7 @@ def main():
 
     print("Loading CelebA-SR training dataset...")
     train_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=train_img_filenames)
-    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=16, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=20, pin_memory=True)
     print(f"Dataset loaded with {len(train_set)} training samples.")
 
     # ----------------------
@@ -289,7 +289,7 @@ def main():
     # Load the SwinIR model from the provided pretrained checkpoint
     swinir_path = "./model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
     model_gen = load_swinir_model(swinir_path, device).to(device)
-    
+
     # Freeze early layers to preserve low-level features.
     for name, param in model_gen.named_parameters():
         if "layers.0" in name or "patch_embed" in name:
@@ -324,12 +324,29 @@ def main():
     # ----------------------
     # Training Loop with Checkpointing
     # ----------------------
+    # Initial weights
+    pixel_w = 1.0
+    perceptual_w = 0.1
+    adv_w = 0.01
+
     print("Starting training...")
     for epoch in range(start_epoch + 1, args.num_epochs + 1):
         print(f"\nStarting epoch {epoch}")
-        train_model(model_gen, train_loader, optimizer, pixel_loss_fn, vgg, fr_model,
-                    device, epoch, lambda_pixel=1.0, lambda_perceptual=0.1, lambda_adv=0.01, scaler=scaler)
-        
+        train_model(
+            model_gen,
+            train_loader,
+            optimizer,
+            pixel_loss_fn,
+            vgg,
+            fr_model,
+            device,
+            epoch,
+            lambda_pixel=pixel_w,
+            lambda_perceptual=perceptual_w,
+            lambda_adv=adv_w,
+            scaler=scaler,
+        )
+
         # Check elapsed time after each epoch
         elapsed_time = time.time() - training_start_time
         if elapsed_time >= max_training_time:
