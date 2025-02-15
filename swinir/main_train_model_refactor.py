@@ -30,7 +30,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, ToTensor
 from typing import List, Dict, Any, Tuple
 from torch.cuda.amp import autocast, GradScaler
-from torch.utils.tensorboard import SummaryWriter
 
 from models.network_swinir import SwinIR
 from facenet_pytorch import InceptionResnetV1
@@ -352,9 +351,6 @@ def main():
     optimizer = optim.Adam(model_gen.parameters(), lr=1e-5)
     scaler = GradScaler()
 
-    # Initialize TensorBoard writer
-    writer = SummaryWriter(log_dir="runs/swinir_experiment")
-
     # Initialize loss histories.
     start_epoch = 0
     train_losses = []
@@ -391,7 +387,6 @@ def main():
         )
         print(f"Epoch {epoch} Training Loss: {train_loss:.4f}")
         train_losses.append(train_loss)
-        writer.add_scalar("Loss/Train", train_loss, epoch)
         
         # Validation step
         val_loss = validate_model(
@@ -407,7 +402,6 @@ def main():
         )
         print(f"Epoch {epoch} Validation Loss: {val_loss:.4f}")
         val_losses.append(val_loss)
-        writer.add_scalar("Loss/Validation", val_loss, epoch)
 
         # Check elapsed time for checkpointing.
         elapsed_time = time.time() - training_start_time
@@ -416,7 +410,6 @@ def main():
             save_checkpoint(model_gen, optimizer, scaler, epoch, checkpoint_dir="output",
                             train_losses=train_losses, val_losses=val_losses)
             print(f"Stopping training now at epoch {epoch}. Please resume later.")
-            writer.close()
             return
 
     # Training complete: save the final model.
@@ -431,8 +424,6 @@ def main():
     with open(loss_file, "w") as f:
         json.dump(loss_history, f, indent=4)
     print(f"Loss history saved at {loss_file}")
-    
-    writer.close()
 
 
 if __name__ == "__main__":
