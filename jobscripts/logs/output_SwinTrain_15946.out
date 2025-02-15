@@ -1,0 +1,36 @@
+Using device: cuda
+Training identities: 3000 | Training images: 85727
+Loading CelebA-SR training dataset...
+Dataset loaded with 85727 training samples.
+SwinIR model loaded successfully.
+Resuming training from epoch 66
+Starting training...
+
+Starting epoch 66
+
+Starting epoch 67
+
+Starting epoch 68
+
+Starting epoch 69
+
+Starting epoch 70
+
+Starting epoch 71
+
+Starting epoch 72
+
+Starting epoch 73
+
+Starting epoch 74
+
+Starting epoch 75
+
+Starting epoch 76
+
+Starting epoch 77
+
+Starting epoch 78
+Elapsed training time 5.21 hours reached limit of 5 hours.
+Checkpoint saved at output/checkpoint_epoch_78_2025-02-07_01-52-42.pth
+Stopping training now at epoch 78. Please resume later.

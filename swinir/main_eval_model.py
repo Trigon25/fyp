@@ -233,7 +233,7 @@ def main():
     test_img_filenames, _ = load_identity_file(test_identity_file)
     test_set = CelebASRDataset(lr_dir, hr_dir, valid_filenames=test_img_filenames)
     test_loader = DataLoader(
-        test_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True
+        test_set, batch_size=32, shuffle=False, num_workers=16, pin_memory=True
     )
     print(f"Loaded test set with {len(test_set)} images.")
 

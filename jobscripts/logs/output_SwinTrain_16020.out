@@ -1,0 +1,26 @@
+Using device: cuda
+Training identities: 3000 | Training images: 85727
+Loading CelebA-SR training dataset...
+Dataset loaded with 85727 training samples.
+SwinIR model loaded successfully.
+Resuming training from epoch 92
+Starting training...
+
+Starting epoch 92
+
+Starting epoch 93
+
+Starting epoch 94
+
+Starting epoch 95
+
+Starting epoch 96
+
+Starting epoch 97
+
+Starting epoch 98
+
+Starting epoch 99
+
+Starting epoch 100
+Training completed. Final model saved at output/swinir_fr_model_2025-02-07_14-44-13.pth

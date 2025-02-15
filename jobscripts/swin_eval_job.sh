@@ -11,7 +11,7 @@
 
 ### Specify number of core (CPU) to allocate to per node ###
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=16
 
 ### Specify number of node to compute ###
 #SBATCH --nodes=1
@@ -24,9 +24,9 @@
 #SBATCH --time=360
 
 ### Specify name for the job, filename format for output and error ###
-#SBATCH --job-name=SwinTrain
-#SBATCH --output=./logs/output_%x_%j.out
-#SBATCH --error=./logs/error_%x_%j.err
+#SBATCH --job-name=SREvalJob
+#SBATCH --output=output_%x_%j.out
+#SBATCH --error=error_%x_%j.err
 
 ### Your script for computation ###
 cd ../swinir/
@@ -34,4 +34,4 @@ cd ../swinir/
 module load anaconda
 source activate FYPcuda
 
-python main_train_model.py --resume ../swinir/output/checkpoint_epoch_91_2025-02-07_07-26-12.pth
+python main_eval_model.py
