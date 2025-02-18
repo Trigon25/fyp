@@ -365,8 +365,8 @@ def main():
 
     # Loss weights
     pixel_w = 1.0
-    perceptual_w = 0.1
-    adv_w = 0.01
+    perceptual_w = 0.2
+    adv_w = 0.05
 
     print("Starting training...")
     for epoch in range(start_epoch + 1, args.num_epochs + 1):
