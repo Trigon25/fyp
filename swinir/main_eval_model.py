@@ -16,6 +16,7 @@ import argparse
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, ToTensor
 from PIL import Image
@@ -174,34 +175,49 @@ def evaluate_model(model_gen: nn.Module, dataloader: DataLoader, pixel_loss_fn: 
     return metrics
 
 
-def evaluate_fooling_rate(generator: nn.Module, fr_model: nn.Module, dataloader: DataLoader, device: torch.device):
+def evaluate_fooling_rate(
+    generator: nn.Module,
+    fr_model: nn.Module,
+    dataloader: DataLoader,
+    device: torch.device,
+    threshold: float = 0.8,
+):
     """
     Evaluate the fooling rate of the generator (i.e., the rate at which the face
     recognition model misclassifies the super-resolved images compared to the HR images).
-    
+
     Args:
         generator (nn.Module): The super-resolution generator.
         fr_model (nn.Module): Face recognition model.
         dataloader (DataLoader): Data loader for the test set.
         device (torch.device): Device for evaluation.
-        
+        threshold (float): Cosine similarity threshold below which the SR image is considered
+                           to have a different (wrong) identity.
+
     Returns:
         fooling_rate (float): Fraction of images where SR predictions differ from HR.
     """
     generator.eval()
-    correct = 0
-    total = 0
+    fr_model.eval()
+
+    fooled_count = 0
+    samples = 0
+
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Evaluating Fooling Rate", unit="batch"):
             lr = batch["lr"].to(device)
             hr = batch["hr"].to(device)
             sr = generator(lr)
-            # Get "predictions" from the face recognition model.
-            pred_hr = fr_model(hr).argmax(dim=1)
-            pred_sr = fr_model(sr).argmax(dim=1)
-            total += hr.size(0)
-            correct += (pred_sr != pred_hr).sum().item()
-    return correct / total if total > 0 else 0.0
+
+            emb_hr = fr_model(hr)
+            emb_sr = fr_model(sr)
+
+            similarity = F.cosine_similarity(emb_hr, emb_sr, dim=1)
+
+            fooled_count += (similarity < threshold).sum().item()
+            total_samples += hr.size(0)
+
+    return fooled_count / total_samples if total_samples > 0 else 0.0
 
 
 def main():
@@ -268,14 +284,14 @@ def main():
 
     # Save the evaluation metrics to a file.
     os.makedirs("output", exist_ok=True)
-    model_name = os.path.basename(model_path).split('.')[-1]
+    model_name = os.path.basename(model_path).split('.')[0]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     metrics_file = os.path.join("output", f"eval_metrics_{model_name}_{timestamp}.txt")
     with open(metrics_file, "w") as f:
         f.write(f"L1: {metrics['L1']:.4f}\n")
         f.write(f"PSNR: {metrics['PSNR']:.2f}\n")
         f.write(f"SSIM: {metrics['SSIM']:.4f}\n")
-        f.write(f"Fooling Rate: {fooling_rate:.4f}\n")
+        f.write(f"Fooling Rate (fooled/total): {fooling_rate:.4f}\n")
     print(f"Evaluation metrics saved to '{metrics_file}'.")
 
 

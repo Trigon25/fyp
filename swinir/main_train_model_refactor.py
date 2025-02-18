@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.models as models
+from torch.nn import functional as F
 from torchvision.models import VGG19_Weights
 from PIL import Image
 from tqdm import tqdm
@@ -161,8 +162,8 @@ def adversarial_loss_fn(fr_model: nn.Module, sr: torch.Tensor, hr: torch.Tensor)
     """
     sr_emb = fr_model(sr)
     hr_emb = fr_model(hr)
-    cos_sim = torch.nn.functional.cosine_similarity(sr_emb, hr_emb, dim=1, eps=1e-8)
-    return 1 - cos_sim.mean()
+    cos_sim = F.cosine_similarity(sr_emb, hr_emb, dim=1, eps=1e-8)
+    return cos_sim.mean()
 
 
 def train_model(model_gen: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer,
