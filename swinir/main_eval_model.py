@@ -201,7 +201,7 @@ def evaluate_fooling_rate(
     fr_model.eval()
 
     fooled_count = 0
-    samples = 0
+    total_samples = 0
 
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Evaluating Fooling Rate", unit="batch"):
