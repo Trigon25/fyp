@@ -163,7 +163,7 @@ def adversarial_loss_fn(fr_model: nn.Module, sr: torch.Tensor, hr: torch.Tensor)
     sr_emb = fr_model(sr)
     hr_emb = fr_model(hr)
     cos_sim = F.cosine_similarity(sr_emb, hr_emb, dim=1, eps=1e-8)
-    return cos_sim.mean()
+    return 1 + cos_sim.mean()
 
 
 def train_model(model_gen: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer,
