@@ -1,13 +1,11 @@
 import os
 import torch
 import argparse
+import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
-import torch.nn.functional as F
 from facenet_pytorch import InceptionResnetV1
-import torch.nn as nn
-
-# Import your SwinIR model (make sure your PYTHONPATH is set appropriately)
 from models.network_swinir import SwinIR
 
 def load_sr_model(model_path: str, device: torch.device) -> nn.Module:
@@ -55,8 +53,7 @@ def load_image(image_path: str, transform: transforms.Compose) -> torch.Tensor:
     """
     Loads an image and applies the transformation pipeline.
     """
-    image = Image.open(image_path).convert('RGB')
-    return transform(image)
+    return transform(image_path)
 
 def get_embedding(image_tensor: torch.Tensor, model: InceptionResnetV1, device: torch.device) -> torch.Tensor:
     """

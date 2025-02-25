@@ -11,4 +11,5 @@ swinir/__MACOSX/
 swinir/fr_verification/selected_identities
 swinir/fr_verification/query
 swinir/fr_verification/truth
+swinir/fr_verification/ground_truth_embeddings
 ignore/
