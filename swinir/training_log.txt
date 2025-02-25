@@ -1,0 +1,48 @@
+baseline model: swinir_fr_model_2025-02-10_10-30-21.pth
+metrics: job 18449 eval_metrics_swinir_fr_model_2025-02-10_10-30-21_20250219_160920.txt
+
+
+=========Training==========
+job: 18098
+weights: 1.0 0.1 0.01
+train/val split: 1200/200
+output: swinir_fr_model_2025-02-18_20-01-51.pth
+metrics: eval_metrics_swinir_fr_model_2025-02-18_20-01-51_20250218_203434.txt
+note: "decent images"
+
+job: 18283
+weights: 1.0 0.2 0.05
+train/val split: 1200/200
+output: swinir_fr_model_2025-02-19_01-34-44.pth
+metrics: eval_metrics_swinir_fr_model_2025-02-19_01-34-44_20250219_015437.txt
+note: "too distorted visually"
+
+job: 18447
+weights: 1.0 0.15 0.02
+train/val split: 1200/200
+output: swinir_fr_model_2025-02-19_16-07-03.pth
+metrics: eval_metrics_swinir_fr_model_2025-02-19_16-07-03_20250219_161129.txt
+note: "seems like should not increase the perceptual weight"
+
+job: 18855
+weights: 1.0 0.1 0.02
+train/val split: 1200/200
+output: swinir_fr_model_2025-02-21_20-05-16.pth
+metrics: eval_metrics_swinir_fr_model_2025-02-21_20-05-16_20250224_100031.txt
+note: "better images but still a bit distorted"
+
+job: 19402
+weights: 1.0 0.1 0.015
+train/val split: 1200/200
+output: swinir_fr_model_2025-02-24_17-18-21.pth
+metrics: eval_metrics_swinir_fr_model_2025-02-24_17-18-21_20250225_154231.txt
+note: "eyes have weird artifacts around them"
+
+-------------FR---------------
+Use a portion of the identies have not been seen
+- downscale the image
+- upscale with trained SR model
+- use FaceNet to verification
+    - Give facenet HR image to check for identity (10 ground truth images)
+    - pass it HR, SR image, and see if it thinks it is the same identity (different image from ground truth)
+- Calculate metrics for SR image against HR image for image quality

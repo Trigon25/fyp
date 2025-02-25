@@ -8,3 +8,5 @@ __pycache__/
 venv/
 swinir/datasets/
 swinir/__MACOSX/
+swinir/fr_verification/selected_identities
+ignore/
