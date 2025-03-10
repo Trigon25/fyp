@@ -29,8 +29,7 @@ def super_resolve_image(lr_image: Image.Image, sr_model: nn.Module, device: torc
     with torch.no_grad():
         sr_tensor = sr_model(lr_tensor)
     sr_tensor = torch.clamp(sr_tensor.squeeze(0), 0, 1)
-    to_pil = transforms.ToPILImage()
-    return to_pil(sr_tensor.cpu())
+    return transforms.ToPILImage()(sr_tensor.cpu())
 
 def load_image(image_input, transform: transforms.Compose) -> torch.Tensor:
     image = Image.open(image_input).convert('RGB') if isinstance(image_input, str) else image_input
@@ -70,39 +69,47 @@ def load_all_reference_embeddings(ground_truth_base: str, transform: transforms.
     reference_embeddings = {}
     for identity in os.listdir(ground_truth_base):
         identity_dir = os.path.join(ground_truth_base, identity)
-        if not os.path.isdir(identity_dir): continue
+        if not os.path.isdir(identity_dir):
+            continue
         ref_embedding = get_reference_embedding(identity_dir, transform, model, device, save_dir)
         reference_embeddings[identity] = ref_embedding
     return reference_embeddings
 
 def match_query_image_single(query_image_path: str, sr_model: nn.Module, reference_embeddings: dict,
                              fr_transform: transforms.Compose, fr_model: InceptionResnetV1,
-                             device: torch.device, threshold: float) -> dict:
+                             device: torch.device, threshold: float, skip_sr: bool = False) -> dict:
     lr_image = Image.open(query_image_path).convert('RGB')
-    sr_image = super_resolve_image(lr_image, sr_model, device)
-    image_tensor = load_image(sr_image, fr_transform)
+    processed_image = lr_image if skip_sr else super_resolve_image(lr_image, sr_model, device)
+    image_tensor = load_image(processed_image, fr_transform)
     query_embedding = get_embedding(image_tensor, fr_model, device)
     best_match, best_similarity = None, -1.0
+    all_similarities = {}
     for identity, ref_embedding in reference_embeddings.items():
         similarity = compute_cosine_similarity(query_embedding, ref_embedding)
+        all_similarities[identity] = similarity
         if similarity > best_similarity:
             best_similarity = similarity
             best_match = identity
     return {
         "query_image": os.path.basename(query_image_path),
+        "all_similarities": all_similarities,
         "best_match": best_match if best_similarity >= threshold else None,
         "best_similarity": best_similarity
     }
 
 def main():
     parser = argparse.ArgumentParser(description="FR Verification with SR-enhanced Queries")
-    parser.add_argument('--query_dir', type=str, required=True, help="Directory with LR query images")
+    parser.add_argument('--query_dir', type=str, required=True, help="Directory with query images")
     parser.add_argument('--ground_truth_base', type=str, default='./fr_verification/selected_identities', help="Directory with identity subdirectories")
-    parser.add_argument('--save_embeddings_dir', type=str, default='./fr_verification/ground_truth_embeddings', help="Directory to save ground truth embeddings")
-    parser.add_argument('--sr_model_path', type=str, required=True, help="Path to SR model checkpoint")
-    parser.add_argument('--output_dir', type=str, default='./fr_verification/results', help="Directory to save results summary")
+    parser.add_argument('--save_embeddings_dir', type=str, default='./fr_verification/ground_truth_embeddings', help="Directory to save embeddings")
+    parser.add_argument('--sr_model_path', type=str, help="Path to SR model checkpoint")
+    parser.add_argument('--output_dir', type=str, default='./fr_verification/results', help="Directory to save results")
     parser.add_argument('--threshold', type=float, default=0.8, help="Cosine similarity threshold")
+    parser.add_argument('--skip_sr', action='store_true', help="Bypass SR step; query images are already HR")
     args = parser.parse_args()
+    
+    if not args.skip_sr and not args.sr_model_path:
+        parser.error("--sr_model_path is required unless --skip_sr is enabled")
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     fr_transform = transforms.Compose([
@@ -111,7 +118,7 @@ def main():
         transforms.Normalize(mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5])
     ])
     fr_model = InceptionResnetV1(pretrained='vggface2').to(device)
-    sr_model = load_sr_model(args.sr_model_path, device)
+    sr_model = load_sr_model(args.sr_model_path, device) if not args.skip_sr else None
     reference_embeddings = load_all_reference_embeddings(args.ground_truth_base, fr_transform, fr_model, device, args.save_embeddings_dir)
     
     query_images = [os.path.join(args.query_dir, f) for f in os.listdir(args.query_dir)
@@ -119,11 +126,11 @@ def main():
     
     results = []
     for query_image in tqdm(query_images, desc="Processing queries"):
-        result = match_query_image_single(query_image, sr_model, reference_embeddings, fr_transform, fr_model, device, args.threshold)
+        result = match_query_image_single(query_image, sr_model, reference_embeddings, fr_transform, fr_model, device, args.threshold, skip_sr=args.skip_sr)
         results.append(result)
     
     os.makedirs(args.output_dir, exist_ok=True)
-    model_file = os.path.basename(args.sr_model_path)
+    model_file = os.path.basename(args.sr_model_path) if args.sr_model_path else "skipped_sr"
     output_file = os.path.join(args.output_dir, f"results_summary_{model_file}.json")
     summary = {"model_used": model_file, "results": results}
     with open(output_file, "w") as f:

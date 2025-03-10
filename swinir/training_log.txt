@@ -46,3 +46,13 @@ Use a portion of the identies have not been seen
     - Give facenet HR image to check for identity (10 ground truth images)
     - pass it HR, SR image, and see if it thinks it is the same identity (different image from ground truth)
 - Calculate metrics for SR image against HR image for image quality
+
+Next week
+- Attack success rate
+    - 2 images of same identity, and run it through SR, outcome wanted is if FR fails to say that they are the same person
+    - 2 images of same identity, without SR, outcome of FR model
+- Show the draft of report. Due 24 March.
+
+
+Improve image quality while maintaining attack success rate
+Experiments - Compare with baseline model/other papers/
